@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground;
+}
+
+.blink-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: blink-caret 1s steps(1, end) infinite;
+}
+
+@keyframes blink-caret {
+  50% {
+    opacity: 0;
+  }
+}
