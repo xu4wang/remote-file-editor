@@ -7,6 +7,10 @@ type TreeNode = {
   path: string;
   children?: TreeNode[];
   size?: number;
+  hasMore?: boolean;
+  offset?: number;
+  limit?: number;
+  nextOffset?: number;
 };
 
 type Tab = {
@@ -61,6 +65,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [treeLoading, setTreeLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
+  const [loadingDirs, setLoadingDirs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -90,7 +95,7 @@ function App() {
   function refreshTree() {
     if (!token) return;
     setTreeLoading(true);
-    fetch("/api/fs/tree", { headers: { ...authedHeaders } })
+    fetch("/api/fs/tree?depth=0", { headers: { ...authedHeaders } })
       .then((r) => r.json())
       .then(setTree)
       .catch(() => setTree(null))
@@ -131,8 +136,67 @@ function App() {
       .catch(() => {});
   }
 
-  function toggleDir(p: string) {
-    setOpenDirs((prev) => ({ ...prev, [p]: !prev[p] }));
+  function updateTreeByPath(root: TreeNode, p: string, upd: (n: TreeNode) => TreeNode): TreeNode {
+    if ((root.path || "") === (p || "")) {
+      return upd(root);
+    }
+    if (root.type === "dir" && root.children?.length) {
+      const newChildren = root.children.map((c) => updateTreeByPath(c, p, upd));
+      if (newChildren !== root.children) {
+        return { ...root, children: newChildren };
+      }
+    }
+    return root;
+  }
+
+  async function loadDir(p: string, offset = 0) {
+    if (!token) return;
+    setLoadingDirs((prev) => ({ ...prev, [p]: true }));
+    try {
+      const res = await fetch(`/api/fs/tree?path=${encodeURIComponent(p)}&depth=1&limit=200&offset=${offset}`, {
+        headers: { ...authedHeaders },
+      });
+      const data: TreeNode = await res.json();
+      setTree((prev) => {
+        if (!prev) return prev;
+        const updater = (n: TreeNode) => {
+          const incoming = data;
+          if (offset > 0 && Array.isArray(n.children)) {
+            return {
+              ...n,
+              children: [...n.children, ...(incoming.children || [])],
+              hasMore: incoming.hasMore,
+              offset: incoming.offset,
+              limit: incoming.limit,
+              nextOffset: incoming.nextOffset,
+            };
+          }
+          return {
+            ...n,
+            children: incoming.children || [],
+            hasMore: incoming.hasMore,
+            offset: incoming.offset,
+            limit: incoming.limit,
+            nextOffset: incoming.nextOffset,
+          };
+        };
+        return updateTreeByPath(prev, p, updater);
+      });
+    } finally {
+      setLoadingDirs((prev) => ({ ...prev, [p]: false }));
+    }
+  }
+
+  function toggleDir(p: string, node?: TreeNode) {
+    setOpenDirs((prev) => {
+      const nextOpen = !prev[p];
+      // If opening a directory whose children are not loaded, lazy load
+      if (nextOpen && node && node.type === "dir" && !node.children) {
+        // Fire and forget
+        loadDir(p, 0);
+      }
+      return { ...prev, [p]: nextOpen };
+    });
   }
 
   function openFile(p: string) {
@@ -253,12 +317,12 @@ function App() {
 
   function renderTree(node: TreeNode, depth = 0) {
     if (node.type === "dir") {
-      const open = openDirs[node.path || ""] ?? true;
+      const open = !!openDirs[node.path || ""];
       return (
         <div key={node.path || "__root"} className="select-none">
           <div
             className="flex cursor-pointer items-center gap-2 px-2 py-1 text-sm hover:bg-secondary"
-            onClick={() => toggleDir(node.path || "")}
+            onClick={() => toggleDir(node.path || "", node)}
           >
             <span className="w-3">{open ? "▾" : "▸"}</span>
             <span className="font-medium">{node.name || "root"}</span>
@@ -266,6 +330,21 @@ function App() {
           {open && (
             <div className="pl-4">
               {node.children?.map((c) => renderTree(c, depth + 1))}
+              {loadingDirs[node.path || ""] && (
+                <div className="px-2 py-1 text-xs text-muted-foreground">Loading…</div>
+              )}
+              {!loadingDirs[node.path || ""] && node.hasMore && (
+                <button
+                  className="px-2 py-1 text-xs text-blue-400 hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = node.nextOffset ?? ((node.offset || 0) + (node.children?.length || 0));
+                    loadDir(node.path || "", next);
+                  }}
+                >
+                  Load more…
+                </button>
+              )}
             </div>
           )}
         </div>

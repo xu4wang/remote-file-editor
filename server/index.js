@@ -56,30 +56,61 @@ app.post("/api/auth/login", (req, res) => {
 
 app.get("/api/fs/tree", authMiddleware, (req, res) => {
   const rel = req.query.path || "";
+  const depth = Math.max(0, parseInt(req.query.depth || "1", 10) || 1);
+  const offset = Math.max(0, parseInt(req.query.offset || "0", 10) || 0);
+  const limit = Math.max(1, Math.min(2000, parseInt(req.query.limit || "200", 10) || 200));
   const target = resolveSafe(rel);
   try {
-    function readDir(p) {
+    function readNode(p, d, off = 0, lim = limit) {
       const stats = fs.statSync(p);
+      const base = {
+        name: path.basename(p),
+        path: path.relative(baseDir, p) || "",
+      };
       if (stats.isDirectory()) {
+        const node = { type: "dir", ...base };
+        if (d <= 0) {
+          return node;
+        }
         const items = fs.readdirSync(p);
+        const slice = items.slice(off, off + lim);
+        const children = slice.map((name) => {
+          const childPath = path.join(p, name);
+          const st = fs.statSync(childPath);
+          if (st.isDirectory()) {
+            return {
+              type: "dir",
+              name,
+              path: path.relative(baseDir, childPath),
+            };
+          } else {
+            return {
+              type: "file",
+              name,
+              path: path.relative(baseDir, childPath),
+              size: st.size,
+            };
+          }
+        });
+        const hasMore = off + slice.length < items.length;
         return {
-          type: "dir",
-          name: path.basename(p),
-          path: path.relative(baseDir, p) || "",
-          children: items
-            .map((name) => path.join(p, name))
-            .map((child) => readDir(child)),
+          ...node,
+          children,
+          hasMore,
+          offset: off,
+          limit: lim,
+          total: items.length,
+          nextOffset: hasMore ? off + slice.length : undefined,
         };
       } else {
         return {
           type: "file",
-          name: path.basename(p),
-          path: path.relative(baseDir, p),
+          ...base,
           size: stats.size,
         };
       }
     }
-    const tree = readDir(target);
+    const tree = readNode(target, depth, offset, limit);
     res.json(tree);
   } catch (e) {
     res.status(400).json({ error: e.message });
