@@ -1,5 +1,7 @@
 # Remote File Editor
 
+![remote access VPS](image.png)
+
 A lightweight web IDE with a VS Code-like layout:
 - Monaco-based code editor with syntax highlighting
 - File tree browsing, read and save with path safety checks
