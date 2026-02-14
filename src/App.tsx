@@ -66,6 +66,12 @@ function App() {
   const [treeLoading, setTreeLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
   const [loadingDirs, setLoadingDirs] = useState<Record<string, boolean>>({});
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; tabPath: string | null }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    tabPath: null,
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -91,6 +97,13 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+    const onClick = () => setContextMenu((prev) => ({ ...prev, visible: false }));
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [contextMenu.visible]);
 
   function refreshTree() {
     if (!token) return;
@@ -305,6 +318,20 @@ function App() {
     }
   }
 
+  function closeAllTabs() {
+    setTabs([]);
+    setActivePath(null);
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }
+
+  function closeOtherTabs(p: string) {
+    const targetTab = tabs.find((t) => t.path === p);
+    if (!targetTab) return;
+    setTabs([targetTab]);
+    setActivePath(p);
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }
+
   function requestCloseTab(p: string) {
     const t = tabs.find((x) => x.path === p);
     if (!t) return;
@@ -368,6 +395,26 @@ function App() {
 
   return (
     <div className="flex h-screen w-full flex-col">
+      {contextMenu.visible && (
+        <div
+          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-popover p-1 shadow-md"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            onClick={() => contextMenu.tabPath && closeOtherTabs(contextMenu.tabPath)}
+          >
+            Close Others
+          </button>
+          <button
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            onClick={closeAllTabs}
+          >
+            Close All
+          </button>
+        </div>
+      )}
       <div className="flex h-10 items-center justify-between border-b border-border px-2">
         <div className="flex items-center gap-2">
           <button
@@ -415,6 +462,10 @@ function App() {
                 key={t.path}
                 className={`flex items-center gap-2 px-3 text-sm ${activePath === t.path ? "bg-secondary" : ""} cursor-pointer`}
                 onClick={() => setActivePath(t.path)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ visible: true, x: e.clientX, y: e.clientY, tabPath: t.path });
+                }}
                 title={t.path}
               >
                 <span>
