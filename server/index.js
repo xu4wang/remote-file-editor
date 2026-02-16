@@ -133,12 +133,64 @@ app.get("/api/fs/read", authMiddleware, (req, res) => {
   }
 });
 
+app.get("/api/fs/read-binary", authMiddleware, (req, res) => {
+  const rel = req.query.path;
+  if (!rel) return res.status(400).json({ error: "path required" });
+  try {
+    const p = resolveSafe(rel);
+    const stat = fs.statSync(p);
+    if (stat.isDirectory()) {
+      return res.status(400).json({ error: "path is a directory" });
+    }
+    const ext = path.extname(p).toLowerCase();
+    const mimeMap = {
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".gif": "image/gif",
+      ".bmp": "image/bmp",
+      ".webp": "image/webp",
+      ".svg": "image/svg+xml",
+    };
+    const type = mimeMap[ext] || "application/octet-stream";
+    res.setHeader("Content-Type", type);
+    const stream = fs.createReadStream(p);
+    stream.on("error", (e) => {
+      res.status(400).json({ error: e.message });
+    });
+    stream.pipe(res);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.post("/api/fs/save", authMiddleware, (req, res) => {
   const { path: rel, content } = req.body || {};
   if (!rel) return res.status(400).json({ error: "path required" });
   try {
     const p = resolveSafe(rel);
     fs.writeFileSync(p, content ?? "", "utf8");
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.post("/api/fs/save-binary", authMiddleware, (req, res) => {
+  const { path: rel, dataUrl } = req.body || {};
+  if (!rel) return res.status(400).json({ error: "path required" });
+  if (typeof dataUrl !== "string") {
+    return res.status(400).json({ error: "dataUrl required" });
+  }
+  const idx = dataUrl.indexOf(",");
+  if (idx === -1) {
+    return res.status(400).json({ error: "invalid dataUrl" });
+  }
+  try {
+    const p = resolveSafe(rel);
+    const base64 = dataUrl.slice(idx + 1);
+    const buf = Buffer.from(base64, "base64");
+    fs.writeFileSync(p, buf);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });

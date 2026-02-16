@@ -5,11 +5,15 @@
 A lightweight web IDE with a VS Code-like layout:
 - Monaco-based code editor with syntax highlighting
 - File tree browsing, read and save with path safety checks
+- Image viewer and simple editor (resize, grayscale, size in bytes)
 - Terminal-like panel (API-driven): type after the prompt, results on the next line, prompt reappears
 - Terminal panel supports collapse/expand and drag-to-resize
 - JWT authentication, password-protected admin access
 - Cmd/Ctrl+S to save, unsaved tab close confirmation
+- Per-tab revert: discard unsaved changes for text and image files
 - All UI text is English with icon-first actions
+
+![alt text](image-1.png)
 
 ## Quick Start
 
@@ -43,7 +47,17 @@ Defaults:
 - Editor
   - Monaco editor, auto layout, word wrap on
   - Language auto-detection by extension
+  - Tabs for both text files and images
   - Cmd/Ctrl+S saves current file
+  - Per-tab revert restores the last opened/saved version (text and images)
+
+- Image Editor
+  - Automatically opens when selecting an image file
+  - Shows current image dimensions (width/height)
+  - Optional aspect-ratio lock when resizing
+  - Grayscale toggle with live preview
+  - Displays current image size (bytes/KB/MB) based on the preview
+  - Apply button writes the transformed image back to the tab (and can be saved)
 
 - File System
   - Tree view with Refresh
@@ -60,6 +74,12 @@ Defaults:
 - Auth
   - POST /api/auth/login with { password }
   - All file and command APIs require the Bearer token
+  - Login form supports pressing Enter in the password field to submit
+
+- Tooling
+  - `npm run lint` for ESLint
+  - `npm run typecheck` for TypeScript project references
+  - `npm test` for Vitest-based tests
 
 ## API Endpoints
 
