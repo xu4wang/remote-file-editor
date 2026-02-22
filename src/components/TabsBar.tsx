@@ -26,11 +26,11 @@ function TabsBar(props: TabsBarProps) {
   } = props;
 
   return (
-    <div className="flex h-9 items-center gap-1 border-b border-border">
+    <div className="flex h-9 items-center gap-1 border-b border-border overflow-x-auto">
       {tabs.map((t) => (
         <div
           key={t.path}
-          className={`flex items-center gap-2 px-3 text-sm ${
+          className={`flex max-w-[160px] shrink-0 items-center gap-2 px-3 text-sm ${
             activePath === t.path ? "bg-secondary" : ""
           } cursor-pointer`}
           onClick={() => onSelectTab(t.path)}
@@ -41,7 +41,7 @@ function TabsBar(props: TabsBarProps) {
           }}
           title={t.path}
         >
-          <span>
+          <span className="max-w-[110px] truncate whitespace-nowrap">
             {t.path.split("/").pop()}
             {t.dirty ? " ●" : ""}
           </span>

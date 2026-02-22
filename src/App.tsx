@@ -38,7 +38,10 @@ function App() {
     () => tabs.find((t) => t.path === activePath) || null,
     [tabs, activePath]
   );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth >= 768;
+  });
   const [treeLoading, setTreeLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
   const [loadingDirs, setLoadingDirs] = useState<Record<string, boolean>>({});
@@ -48,6 +51,7 @@ function App() {
     y: 0,
     tabPath: null,
   });
+  const [topMenuOpen, setTopMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -75,6 +79,13 @@ function App() {
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, [contextMenu.visible]);
+
+  useEffect(() => {
+    if (!topMenuOpen) return;
+    const onClick = () => setTopMenuOpen(false);
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [topMenuOpen]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -517,31 +528,62 @@ function App() {
           <div className="text-sm font-semibold">Remote Editor</div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={saveWorkspaceAs} className="text-xs">
-            Save WS as
-          </Button>
-          <Button
-            onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-            className="text-xs"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </Button>
-          <Button
-            onClick={() => setShowTerminal((v) => !v)}
-            className="text-xs"
-            title={showTerminal ? "Hide terminal" : "Show terminal"}
-          >
-            {showTerminal ? "Terminal: On" : "Terminal: Off"}
-          </Button>
-          <Button
-            onClick={() => {
-              localStorage.removeItem("token");
-              setToken(null);
-            }}
-          >
-            ⎋
-          </Button>
+          <div className="relative">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTopMenuOpen((v) => !v);
+              }}
+              className="flex h-8 w-8 items-center justify-center p-0 text-lg"
+              title="More actions"
+            >
+              ⋯
+            </Button>
+            {topMenuOpen && (
+              <div
+                className="absolute right-0 mt-1 w-44 rounded-md border border-border bg-card text-card-foreground shadow-lg z-20"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  className="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    saveWorkspaceAs();
+                  }}
+                >
+                  Save workspace as...
+                </button>
+                <button
+                  className="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+                  }}
+                >
+                  {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                </button>
+                <button
+                  className="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    setShowTerminal((v) => !v);
+                  }}
+                >
+                  {showTerminal ? "Hide terminal" : "Show terminal"}
+                </button>
+                <button
+                  className="block w-full px-3 py-1.5 text-left text-xs text-destructive hover:bg-muted"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    localStorage.removeItem("token");
+                    setToken(null);
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex min-h-0 flex-1">
