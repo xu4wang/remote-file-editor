@@ -7,34 +7,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        border: "hsl(240 3.7% 15.9%)",
-        input: "hsl(240 3.7% 15.9%)",
-        ring: "hsl(240 4.9% 83.9%)",
-        background: "hsl(240 10% 3.9%)",
-        foreground: "hsl(0 0% 98%)",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(222.2 47.4% 11.2%)",
-          foreground: "hsl(210 40% 98%)",
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "hsl(217.2 32.6% 17.5%)",
-          foreground: "hsl(210 40% 98%)",
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         muted: {
-          DEFAULT: "hsl(217.2 32.6% 17.5%)",
-          foreground: "hsl(215 20.2% 65.1%)",
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(217.2 32.6% 17.5%)",
-          foreground: "hsl(210 40% 98%)",
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         destructive: {
-          DEFAULT: "hsl(0 62.8% 30.6%)",
-          foreground: "hsl(210 40% 98%)",
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         card: {
-          DEFAULT: "hsl(240 10% 3.9%)",
-          foreground: "hsl(0 0% 98%)",
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
         },
       },
       borderRadius: {

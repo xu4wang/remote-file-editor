@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "./components/ui";
 import Login from "./components/Login";
 import ImageEditor from "./components/ImageEditor";
@@ -23,6 +25,15 @@ function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const [baseDir, setBaseDir] = useState<string | null>(null);
+  const [showTerminal, setShowTerminal] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "dark";
+    const stored = window.localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark") return stored;
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return prefersDark ? "dark" : "light";
+  });
+  const [markdownViewMode, setMarkdownViewMode] = useState<"edit" | "preview" | "split">("edit");
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) || null,
     [tabs, activePath]
@@ -64,6 +75,17 @@ function App() {
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, [contextMenu.visible]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
 
   function refreshTree(rootOverride?: string | null) {
     if (!token) return;
@@ -184,6 +206,11 @@ function App() {
     const ext = p.split(".").pop()?.toLowerCase() || "";
     const exts = ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"];
     return exts.includes(ext);
+  }
+
+  function isMarkdownPath(p: string) {
+    const lower = p.toLowerCase();
+    return lower.endsWith(".md") || lower.endsWith(".markdown");
   }
 
   function isWorkspacePath(p: string) {
@@ -461,18 +488,18 @@ function App() {
     <div className="flex h-screen w-full flex-col">
       {contextMenu.visible && (
         <div
-          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-slate-900 text-slate-100 p-1 shadow-lg"
+          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-card text-card-foreground p-1 shadow-lg"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-slate-100 hover:bg-slate-700"
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => contextMenu.tabPath && closeOtherTabs(contextMenu.tabPath)}
           >
             Close Others
           </button>
           <button
-            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-slate-100 hover:bg-slate-700"
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-foreground hover:bg-muted"
             onClick={closeAllTabs}
           >
             Close All
@@ -492,6 +519,20 @@ function App() {
         <div className="flex items-center gap-2">
           <Button onClick={saveWorkspaceAs} className="text-xs">
             Save WS as
+          </Button>
+          <Button
+            onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            className="text-xs"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </Button>
+          <Button
+            onClick={() => setShowTerminal((v) => !v)}
+            className="text-xs"
+            title={showTerminal ? "Hide terminal" : "Show terminal"}
+          >
+            {showTerminal ? "Terminal: On" : "Terminal: Off"}
           </Button>
           <Button
             onClick={() => {
@@ -537,7 +578,7 @@ function App() {
             }}
           />
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col overflow-auto">
               {activeTab ? (
                 activeTab.kind === "image" ? (
                   <ImageEditor
@@ -553,11 +594,117 @@ function App() {
                       );
                     }}
                   />
+                ) : isMarkdownPath(activeTab.path) ? (
+                  <div className="h-full flex flex-col">
+                    <div className="flex items-center gap-2 border-b border-border px-2 py-1 text-xs">
+                      <span className="text-muted-foreground">Markdown view:</span>
+                      <button
+                        className={`rounded px-2 py-0.5 ${
+                          markdownViewMode === "edit" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                        }`}
+                        onClick={() => setMarkdownViewMode("edit")}
+                      >
+                        Editor
+                      </button>
+                      <button
+                        className={`rounded px-2 py-0.5 ${
+                          markdownViewMode === "preview" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                        }`}
+                        onClick={() => setMarkdownViewMode("preview")}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        className={`rounded px-2 py-0.5 ${
+                          markdownViewMode === "split" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                        }`}
+                        onClick={() => setMarkdownViewMode("split")}
+                      >
+                        Split
+                      </button>
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      {markdownViewMode === "preview" && (
+                        <div className="markdown-body p-4 text-sm">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {activeTab.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                      {markdownViewMode === "edit" && (
+                        <div className="h-full">
+                          <Editor
+                            height="100%"
+                            theme={theme === "dark" ? "vs-dark" : "vs-light"}
+                            language={detectLanguage(activeTab.path)}
+                            value={activeTab.content}
+                            onChange={(val: string | undefined) => {
+                              const v = val ?? "";
+                              const path = activeTab.path;
+                              setTabs((prev) =>
+                                prev.map((t) =>
+                                  t.path === path && t.kind === "text"
+                                    ? { ...t, content: v, dirty: true }
+                                    : t
+                                )
+                              );
+                            }}
+                            options={{
+                              fontSize: 14,
+                              minimap: { enabled: false },
+                              wordWrap: "on",
+                              automaticLayout: true,
+                              scrollBeyondLastLine: false,
+                            }}
+                          />
+                        </div>
+                      )}
+                      {markdownViewMode === "split" && (
+                        <div className="flex h-full">
+                          <div className="w-1/2 border-r border-border">
+                            <div className="h-full">
+                              <Editor
+                                height="100%"
+                                theme={theme === "dark" ? "vs-dark" : "vs-light"}
+                                language={detectLanguage(activeTab.path)}
+                                value={activeTab.content}
+                                onChange={(val: string | undefined) => {
+                                  const v = val ?? "";
+                                  const path = activeTab.path;
+                                  setTabs((prev) =>
+                                    prev.map((t) =>
+                                      t.path === path && t.kind === "text"
+                                        ? { ...t, content: v, dirty: true }
+                                        : t
+                                    )
+                                  );
+                                }}
+                                options={{
+                                  fontSize: 14,
+                                  minimap: { enabled: false },
+                                  wordWrap: "on",
+                                  automaticLayout: true,
+                                  scrollBeyondLastLine: false,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="w-1/2">
+                            <div className="markdown-body p-4 text-sm">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {activeTab.content}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-full">
                     <Editor
                       height="100%"
-                      theme="vs-dark"
+                      theme={theme === "dark" ? "vs-dark" : "vs-light"}
                       language={detectLanguage(activeTab.path)}
                       value={activeTab.content}
                       onChange={(val: string | undefined) => {
@@ -587,11 +734,13 @@ function App() {
                 </div>
               )}
             </div>
-            <TerminalPanel
-              authedHeaders={authedHeaders}
-              onAuthError={handleAuthError}
-              baseDir={baseDir}
-            />
+            {showTerminal && (
+              <TerminalPanel
+                authedHeaders={authedHeaders}
+                onAuthError={handleAuthError}
+                baseDir={baseDir}
+              />
+            )}
           </div>
         </div>
       </div>
