@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -52,6 +52,8 @@ function App() {
     tabPath: null,
   });
   const [topMenuOpen, setTopMenuOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const [tocItems, setTocItems] = useState<{ id: string; text: string; level: number }[]>([]);
 
   useEffect(() => {
     if (!token) return;
@@ -97,6 +99,30 @@ function App() {
     }
     window.localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!activeTab || !isMarkdownPath(activeTab.path) || markdownViewMode !== "preview") {
+      setTocItems([]);
+      return;
+    }
+    if (!previewRef.current) return;
+    const root = previewRef.current;
+    const headings = Array.from(root.querySelectorAll("h1, h2, h3")) as HTMLHeadingElement[];
+    const items = headings.map((el) => {
+      const level = Number(el.tagName.substring(1));
+      let id = el.id;
+      if (!id) {
+        id = slugify(el.textContent || "");
+        el.id = id;
+      }
+      return {
+        id,
+        text: el.textContent || "",
+        level,
+      };
+    });
+    setTocItems(items);
+  }, [activeTab, markdownViewMode]);
 
   function refreshTree(rootOverride?: string | null) {
     if (!token) return;
@@ -620,7 +646,7 @@ function App() {
             }}
           />
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex min-w-0 flex-1 flex-col overflow-auto">
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {activeTab ? (
                 activeTab.kind === "image" ? (
                   <ImageEditor
@@ -667,10 +693,42 @@ function App() {
                     </div>
                     <div className="min-h-0 flex-1">
                       {markdownViewMode === "preview" && (
-                        <div className="markdown-body p-4 text-sm">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {activeTab.content}
-                          </ReactMarkdown>
+                        <div className="flex h-full">
+                          <div
+                            ref={previewRef}
+                            className="markdown-body flex-1 overflow-auto p-4 text-sm"
+                          >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {activeTab.content}
+                            </ReactMarkdown>
+                          </div>
+                          <div className="hidden w-64 border-l border-border p-3 text-xs lg:block">
+                            <div className="mb-2 font-semibold text-muted-foreground">
+                              Table of Contents
+                            </div>
+                            {tocItems.length === 0 ? (
+                              <div className="text-muted-foreground/80">No headings</div>
+                            ) : (
+                              <ul className="space-y-1">
+                                {tocItems.map((item) => (
+                                  <li key={item.id}>
+                                    <a
+                                      href={`#${item.id}`}
+                                      className={`block hover:underline ${
+                                        item.level === 1
+                                          ? "font-medium"
+                                          : item.level === 2
+                                          ? "ml-2"
+                                          : "ml-4 text-muted-foreground"
+                                      }`}
+                                    >
+                                      {item.text}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </div>
                       )}
                       {markdownViewMode === "edit" && (
@@ -828,6 +886,14 @@ function detectLanguage(p: string) {
     yaml: "yaml",
   };
   return map[ext] || "plaintext";
+}
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
 }
 
 export default App;
