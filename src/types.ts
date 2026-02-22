@@ -31,3 +31,21 @@ export type WorkspaceFile = {
   openFiles: string[];
   activePath: string | null;
 };
+
+export type ShareInfo = {
+  shareId: string;
+  path: string;
+  username: string;
+  createdAt: string;
+  expiresAt: string | null;
+  url: string;
+};
+
+export type ShareLog = {
+  createdAt: string;
+  ip: string;
+  userAgent: string;
+  usernameAttempt: string;
+  success: number;
+  error: string;
+};

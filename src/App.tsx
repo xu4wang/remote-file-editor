@@ -9,6 +9,7 @@ import FileSidebar from "./components/FileSidebar";
 import TabsBar from "./components/TabsBar";
 import ConfirmCloseDialog from "./components/ConfirmCloseDialog";
 import TerminalPanel from "./components/TerminalPanel";
+import ShareDialog from "./components/ShareDialog";
 import type { Tab, TreeNode, WorkspaceFile } from "./types";
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [tocItems, setTocItems] = useState<{ id: string; text: string; level: number }[]>([]);
+  const [shareDialogPath, setShareDialogPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -664,32 +666,44 @@ function App() {
                   />
                 ) : isMarkdownPath(activeTab.path) ? (
                   <div className="h-full flex flex-col">
-                    <div className="flex items-center gap-2 border-b border-border px-2 py-1 text-xs">
-                      <span className="text-muted-foreground">Markdown view:</span>
-                      <button
-                        className={`rounded px-2 py-0.5 ${
-                          markdownViewMode === "edit" ? "bg-secondary text-foreground" : "hover:bg-secondary"
-                        }`}
-                        onClick={() => setMarkdownViewMode("edit")}
-                      >
-                        Editor
-                      </button>
-                      <button
-                        className={`rounded px-2 py-0.5 ${
-                          markdownViewMode === "preview" ? "bg-secondary text-foreground" : "hover:bg-secondary"
-                        }`}
-                        onClick={() => setMarkdownViewMode("preview")}
-                      >
-                        Preview
-                      </button>
-                      <button
-                        className={`rounded px-2 py-0.5 ${
-                          markdownViewMode === "split" ? "bg-secondary text-foreground" : "hover:bg-secondary"
-                        }`}
-                        onClick={() => setMarkdownViewMode("split")}
-                      >
-                        Split
-                      </button>
+                    <div className="flex items-center justify-between border-b border-border px-2 py-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Markdown view:</span>
+                        <button
+                          className={`rounded px-2 py-0.5 ${
+                            markdownViewMode === "edit" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                          }`}
+                          onClick={() => setMarkdownViewMode("edit")}
+                        >
+                          Editor
+                        </button>
+                        <button
+                          className={`rounded px-2 py-0.5 ${
+                            markdownViewMode === "preview" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                          }`}
+                          onClick={() => setMarkdownViewMode("preview")}
+                        >
+                          Preview
+                        </button>
+                        <button
+                          className={`rounded px-2 py-0.5 ${
+                            markdownViewMode === "split" ? "bg-secondary text-foreground" : "hover:bg-secondary"
+                          }`}
+                          onClick={() => setMarkdownViewMode("split")}
+                        >
+                          Split
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {markdownViewMode === "preview" && (
+                          <button
+                            className="rounded px-2 py-0.5 hover:bg-secondary"
+                            onClick={() => setShareDialogPath(activeTab.path)}
+                          >
+                            Share
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="min-h-0 flex-1">
                       {markdownViewMode === "preview" && (
@@ -858,6 +872,11 @@ function App() {
           closeTab(p);
         }}
         onCancel={() => setConfirmClose(null)}
+      />
+      <ShareDialog
+        path={shareDialogPath}
+        authedHeaders={authedHeaders}
+        onClose={() => setShareDialogPath(null)}
       />
     </div>
   );
