@@ -37,7 +37,8 @@ db.exec(`
     html_content TEXT NOT NULL,
     created_at TEXT NOT NULL,
     expires_at TEXT,
-    active INTEGER NOT NULL DEFAULT 1
+    active INTEGER NOT NULL DEFAULT 1,
+    theme TEXT
   );
   CREATE TABLE IF NOT EXISTS share_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +51,11 @@ db.exec(`
     error TEXT
   );
 `);
+
+try {
+  db.exec("ALTER TABLE shares ADD COLUMN theme TEXT");
+} catch (e) {
+}
 
 function resolveSafe(p = "") {
   const full = path.resolve(baseDir, p);
@@ -211,6 +217,14 @@ ${safeMessage ? `<div class="error">${escapeHtml(safeMessage)}</div>` : ""}
 
 function renderSharedHtmlPage(share) {
   const title = escapeHtml(path.basename(share.file_path || "Shared document"));
+  const theme = share.theme === "light" ? "light" : "dark";
+  const bg = theme === "light" ? "#f9fafb" : "#020617";
+  const fg = theme === "light" ? "#020617" : "#e5e7eb";
+  const border = theme === "light" ? "#e5e7eb" : "#1f2937";
+  const muted = theme === "light" ? "#6b7280" : "#9ca3af";
+  const accent = theme === "light" ? "#2563eb" : "#60a5fa";
+  const tableRowAlt = theme === "light" ? "rgba(249,250,251,1)" : "rgba(15,23,42,0.6)";
+  const tableRowHover = theme === "light" ? "rgba(219,234,254,1)" : "rgba(30,64,175,0.45)";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -218,34 +232,43 @@ function renderSharedHtmlPage(share) {
 <title>${title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-body{margin:0;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#020617;color:#e5e7eb;}
+body{margin:0;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:${bg};color:${fg};}
 .container{max-width:960px;margin:0 auto;}
 main{margin-top:8px;}
-a{color:#60a5fa;}
+a{color:${accent};}
 img{max-width:100%;height:auto;display:block;margin:12px 0;}
-pre{background:#020617;border-radius:4px;padding:12px;overflow:auto;border:1px solid #1f2937;}
+pre{background:${bg};border-radius:4px;padding:12px;overflow:auto;border:1px solid ${border};}
 code{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 0 4px;border-bottom:1px solid #1f2937;font-size:14px;}
-.topbar-title{font-weight:600;color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;}
-.toc-toggle{border:none;background:transparent;color:#9ca3af;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px;display:inline-flex;align-items:center;gap:4px;}
-.toc-toggle:hover{background:#111827;}
-.layout{display:flex;gap:24px;margin-top:8px;}
+.table-wrapper{width:100%;overflow-x:auto;margin:16px 0;}
+table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px;margin:0;}
+thead{background:${bg};}
+th,td{padding:8px 10px;border-bottom:1px solid ${border};text-align:left;vertical-align:top;}
+th{font-weight:600;color:${fg};white-space:nowrap;}
+tbody tr:nth-child(even){background:${tableRowAlt};}
+tbody tr:hover{background:${tableRowHover};}
+.table-wrapper table{margin:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;border-bottom:1px solid ${border};font-size:14px;position:sticky;top:0;background:${bg};z-index:10;}
+.topbar-title{font-weight:600;color:${fg};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;}
+.toc-toggle{border:none;background:transparent;color:${muted};font-size:12px;cursor:pointer;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;}
+.toc-toggle:hover{background:rgba(148,163,184,0.15);}
+.layout{display:flex;gap:32px;margin-top:12px;}
 .content{flex:1;min-width:0;}
-.toc-desktop{width:220px;font-size:12px;color:#9ca3af;display:none;}
-.toc-title{font-weight:600;margin-bottom:6px;color:#9ca3af;}
+.toc-desktop{width:220px;font-size:12px;color:${muted};display:none;position:sticky;top:56px;align-self:flex-start;max-height:calc(100vh - 72px);overflow:auto;padding-left:16px;border-left:1px solid ${border};}
+.toc-title{font-weight:600;margin-bottom:6px;color:${muted};text-transform:uppercase;letter-spacing:0.04em;font-size:11px;}
 .toc-list{list-style:none;padding:0;margin:0;}
-.toc-item{margin-bottom:4px;}
-.toc-item a{text-decoration:none;color:#9ca3af;}
-.toc-item a:hover{text-decoration:underline;color:#e5e7eb;}
-.toc-level-1{font-weight:500;margin-top:6px;}
-.toc-level-2{margin-left:8px;}
-.toc-level-3{margin-left:16px;font-size:11px;}
+.toc-item{margin-bottom:3px;line-height:1.4;}
+.toc-item a{text-decoration:none;color:${muted};}
+.toc-item a:hover{text-decoration:underline;color:${fg};}
+.toc-level-1{font-weight:500;margin-top:8px;}
+.toc-level-2{margin-left:10px;font-size:11px;}
+.toc-level-3{margin-left:18px;font-size:11px;opacity:0.9;}
 .toc-mobile{position:fixed;inset:0;z-index:40;display:none;background:rgba(0,0,0,0.75);}
 .toc-mobile.open{display:block;}
-.toc-mobile-inner{position:absolute;inset:auto 0 0 0;background:#020617;border-top:1px solid #1f2937;max-height:60vh;overflow:auto;padding:12px 16px;}
-.toc-mobile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.toc-mobile-title{font-size:13px;font-weight:600;color:#e5e7eb;}
-.toc-close{border:none;background:transparent;color:#9ca3af;font-size:18px;cursor:pointer;padding:0 4px;}
+.toc-mobile-inner{position:absolute;inset:auto 0 0 0;background:${bg};border-top:1px solid ${border};max-height:60vh;padding:12px 16px;display:flex;flex-direction:column;}
+.toc-mobile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;}
+.toc-mobile-title{font-size:13px;font-weight:600;color:${fg};}
+.toc-close{border:none;background:transparent;color:${muted};font-size:18px;cursor:pointer;padding:0 4px;}
+#tocMobileBody{flex:1;overflow:auto;margin-top:4px;}
 @media (min-width: 1024px){
   .layout{align-items:flex-start;}
   .toc-desktop{display:block;}
@@ -284,27 +307,33 @@ ${share.html_content}
   function slugify(text){
     return String(text || "")
       .trim()
-      .toLowerCase()
-      .replace(/\\s+/g,"-")
-      .replace(/[^a-z0-9\\-]/g,"");
+      .replace(/\\s+/g,"-");
   }
   var content=document.getElementById("content");
   if(!content)return;
   var headings=content.querySelectorAll("h1, h2, h3");
   if(!headings.length)return;
   var items=[];
+  var usedIds={};
   for(var i=0;i<headings.length;i++){
     var el=headings[i];
     var level=parseInt(el.tagName.substring(1),10);
     var text=el.textContent||"";
     var id=el.id;
     if(!id){
-      id=slugify(text);
-      if(!id){
-        id="section-"+(i+1);
+      var baseId=slugify(text);
+      if(!baseId){
+        baseId="section";
+      }
+      id=baseId;
+      var n=1;
+      while(usedIds[id]){
+        n+=1;
+        id=baseId+"-"+n;
       }
       el.id=id;
     }
+    usedIds[id]=true;
     items.push({id:id,text:text,level:level});
   }
   function buildList(container){
@@ -325,7 +354,8 @@ ${share.html_content}
     container.appendChild(ul);
   }
   buildList(document.getElementById("tocDesktop"));
-  buildList(document.getElementById("tocMobileBody"));
+  var tocMobileBody=document.getElementById("tocMobileBody");
+  buildList(tocMobileBody);
   var toggle=document.getElementById("tocToggle");
   var mobile=document.getElementById("tocMobile");
   var close=document.getElementById("tocClose");
@@ -341,6 +371,25 @@ ${share.html_content}
   if(close&&mobile){
     close.addEventListener("click",function(){
       mobile.classList.remove("open");
+    });
+  }
+  if(mobile){
+    mobile.addEventListener("click",function(e){
+      if(e.target===mobile){
+        mobile.classList.remove("open");
+      }
+    });
+  }
+  if(mobile&&tocMobileBody){
+    tocMobileBody.addEventListener("click",function(e){
+      var target=e.target;
+      while(target&&target!==tocMobileBody){
+        if(target.tagName&&target.tagName.toLowerCase()==="a"){
+          mobile.classList.remove("open");
+          break;
+        }
+        target=target.parentNode;
+      }
     });
   }
 })();
@@ -559,6 +608,7 @@ app.get("/api/share", authMiddleware, (req, res) => {
         createdAt: row.created_at,
         expiresAt: row.expires_at || null,
         url,
+        theme: row.theme || null,
       },
     });
   } catch (e) {
@@ -567,7 +617,7 @@ app.get("/api/share", authMiddleware, (req, res) => {
 });
 
 app.post("/api/share", authMiddleware, (req, res) => {
-  const { path: rel, username, password, expiresAt } = req.body || {};
+  const { path: rel, username, password, expiresAt, theme } = req.body || {};
   if (!rel) {
     return res.status(400).json({ error: "path required" });
   }
@@ -593,6 +643,7 @@ app.post("/api/share", authMiddleware, (req, res) => {
         expireIso = dt.toISOString();
       }
     }
+    const themeValue = theme === "light" || theme === "dark" ? theme : null;
     const existing = getActiveShareByPath(rel);
     let shareId;
     let createdAt = now;
@@ -607,8 +658,8 @@ app.post("/api/share", authMiddleware, (req, res) => {
         hash = hashPassword(password, salt);
       }
       db.prepare(
-        "UPDATE shares SET username = ?, password_salt = ?, password_hash = ?, html_content = ?, expires_at = ?, active = 1 WHERE share_id = ?"
-      ).run(username, salt, hash, html, expireIso, shareId);
+        "UPDATE shares SET username = ?, password_salt = ?, password_hash = ?, html_content = ?, expires_at = ?, theme = ?, active = 1 WHERE share_id = ?"
+      ).run(username, salt, hash, html, expireIso, themeValue, shareId);
     } else {
       if (!password || String(password).length === 0) {
         return res.status(400).json({ error: "password required for new share" });
@@ -618,8 +669,8 @@ app.post("/api/share", authMiddleware, (req, res) => {
       const salt = generateSalt();
       const hash = hashPassword(password, salt);
       db.prepare(
-        "INSERT INTO shares (share_id, file_path, username, password_salt, password_hash, html_content, created_at, expires_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)"
-      ).run(shareId, rel, username, salt, hash, html, now, expireIso);
+        "INSERT INTO shares (share_id, file_path, username, password_salt, password_hash, html_content, created_at, expires_at, active, theme) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)"
+      ).run(shareId, rel, username, salt, hash, html, now, expireIso, themeValue);
     }
     const row = getShareById(shareId);
     const url = makeShareUrl(req, row.share_id);
@@ -631,6 +682,7 @@ app.post("/api/share", authMiddleware, (req, res) => {
         createdAt: row.created_at,
         expiresAt: row.expires_at || null,
         url,
+        theme: row.theme || null,
       },
     });
   } catch (e) {

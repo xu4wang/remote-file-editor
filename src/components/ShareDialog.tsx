@@ -7,6 +7,7 @@ type ShareDialogProps = {
   path: string | null;
   authedHeaders: Record<string, string>;
   onClose: () => void;
+  theme: "light" | "dark";
 };
 
 function formatDate(value: string | null) {
@@ -23,7 +24,7 @@ function formatDate(value: string | null) {
 }
 
 function ShareDialog(props: ShareDialogProps) {
-  const { path, authedHeaders, onClose } = props;
+  const { path, authedHeaders, onClose, theme } = props;
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [share, setShare] = useState<ShareInfo | null>(null);
@@ -109,10 +110,12 @@ function ShareDialog(props: ShareDialogProps) {
       username: string;
       password?: string;
       expiresAt?: string | null;
+      theme?: "light" | "dark";
     } = {
       path,
       username,
     };
+    body.theme = theme;
     if (password) {
       body.password = password;
     }

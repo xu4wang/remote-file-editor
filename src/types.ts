@@ -39,6 +39,7 @@ export type ShareInfo = {
   createdAt: string;
   expiresAt: string | null;
   url: string;
+  theme: "light" | "dark" | null;
 };
 
 export type ShareLog = {

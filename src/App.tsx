@@ -876,6 +876,7 @@ function App() {
       <ShareDialog
         path={shareDialogPath}
         authedHeaders={authedHeaders}
+        theme={theme}
         onClose={() => setShareDialogPath(null)}
       />
     </div>
