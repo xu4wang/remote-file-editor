@@ -7,7 +7,7 @@ import FileSidebar from "./components/FileSidebar";
 import TabsBar from "./components/TabsBar";
 import ConfirmCloseDialog from "./components/ConfirmCloseDialog";
 import TerminalPanel from "./components/TerminalPanel";
-import type { Tab, TreeNode } from "./types";
+import type { Tab, TreeNode, WorkspaceFile } from "./types";
 
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
@@ -21,6 +21,8 @@ function App() {
   const [openDirs, setOpenDirs] = useState<Record<string, boolean>>({});
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null);
+  const [baseDir, setBaseDir] = useState<string | null>(null);
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) || null,
     [tabs, activePath]
@@ -39,8 +41,11 @@ function App() {
   useEffect(() => {
     if (!token) return;
     refreshTree();
-    fetch("/api/health").catch(() => {});
-  }, [token]);
+    fetch("/api/health", { headers: { ...authedHeaders } })
+      .then((r) => r.json())
+      .then((data) => setBaseDir(data.baseDir || null))
+      .catch(() => {});
+  }, [token, authedHeaders]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -181,6 +186,10 @@ function App() {
     return exts.includes(ext);
   }
 
+  function isWorkspacePath(p: string) {
+    return p.toLowerCase().endsWith(".workspace");
+  }
+
   function blobToDataUrl(blob: Blob) {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -191,6 +200,10 @@ function App() {
   }
 
   function openFile(p: string) {
+    if (isWorkspacePath(p)) {
+      openWorkspaceByPath(p);
+      return;
+    }
     const exists = tabs.find((t) => t.path === p);
     if (exists) {
       setActivePath(p);
@@ -266,6 +279,73 @@ function App() {
         )
       );
     });
+  }
+
+  async function openWorkspaceByPath(p: string) {
+    const res = await fetch(`/api/fs/read?path=${encodeURIComponent(p)}`, {
+      headers: { ...authedHeaders },
+    });
+    if (res.status === 401) {
+      handleAuthError();
+      return;
+    }
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    const content = data.content ?? "";
+    let parsed: WorkspaceFile;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      return;
+    }
+    applyWorkspace(parsed, p);
+  }
+
+  function applyWorkspace(workspace: WorkspaceFile, path: string | null) {
+    const root = workspace.rootPath ?? null;
+    setWorkspacePath(path);
+    setTabs([]);
+    setActivePath(null);
+    refreshTree(root);
+    const files = workspace.openFiles || [];
+    files.forEach((p) => {
+      if (p) {
+        openFile(p);
+      }
+    });
+    if (workspace.activePath) {
+      setActivePath(workspace.activePath);
+    }
+  }
+
+  async function saveWorkspaceAs() {
+    const defaultName =
+      workspacePath?.split("/").pop() || "workspace.workspace";
+    const nameInput = window.prompt("Workspace file name", defaultName);
+    if (!nameInput) return;
+    let targetPath = nameInput.trim();
+    if (!targetPath.toLowerCase().endsWith(".workspace")) {
+      targetPath = `${targetPath}.workspace`;
+    }
+    targetPath = targetPath.replace(/^\/+/, "");
+    const workspace: WorkspaceFile = {
+      rootPath: treeRootPath ?? null,
+      openFiles: tabs.map((t) => t.path),
+      activePath,
+    };
+    const content = JSON.stringify(workspace, null, 2);
+    const res = await fetch("/api/fs/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authedHeaders },
+      body: JSON.stringify({ path: targetPath, content }),
+    });
+    if (res.status === 401) {
+      handleAuthError();
+      return;
+    }
+    setWorkspacePath(targetPath);
   }
 
   function saveActive() {
@@ -381,18 +461,18 @@ function App() {
     <div className="flex h-screen w-full flex-col">
       {contextMenu.visible && (
         <div
-          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-popover p-1 shadow-md"
+          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-slate-900 text-slate-100 p-1 shadow-lg"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-slate-100 hover:bg-slate-700"
             onClick={() => contextMenu.tabPath && closeOtherTabs(contextMenu.tabPath)}
           >
             Close Others
           </button>
           <button
-            className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-slate-100 hover:bg-slate-700"
             onClick={closeAllTabs}
           >
             Close All
@@ -410,6 +490,9 @@ function App() {
           <div className="text-sm font-semibold">Remote Editor</div>
         </div>
         <div className="flex items-center gap-2">
+          <Button onClick={saveWorkspaceAs} className="text-xs">
+            Save WS as
+          </Button>
           <Button
             onClick={() => {
               localStorage.removeItem("token");
@@ -504,7 +587,11 @@ function App() {
                 </div>
               )}
             </div>
-            <TerminalPanel authedHeaders={authedHeaders} onAuthError={handleAuthError} />
+            <TerminalPanel
+              authedHeaders={authedHeaders}
+              onAuthError={handleAuthError}
+              baseDir={baseDir}
+            />
           </div>
         </div>
       </div>

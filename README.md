@@ -11,6 +11,7 @@ A lightweight web IDE with a VS Code-like layout:
 - JWT authentication, password-protected admin access
 - Cmd/Ctrl+S to save, unsaved tab close confirmation
 - Per-tab revert: discard unsaved changes for text and image files
+- Workspace files: save and restore editor state (.workspace)
 - All UI text is English with icon-first actions
 
 ![alt text](image-1.png)
@@ -63,6 +64,26 @@ Defaults:
   - Tree view with Refresh
   - Read and save files under WORKSPACE_DIR (path validation enforced)
   - Change directory via terminal using `cd`
+
+- Workspace
+  - Workspace files end with `.workspace`
+  - Clicking a `.workspace` entry in the file tree does not open an editor tab
+  - Instead, it loads a workspace: sets the file-tree root, re-opens listed files, and restores the active tab
+  - The "Save WS as" button in the top bar saves the current workspace
+    - Always prompts for a workspace file name
+    - Stores the file under the backend baseDir (WORKSPACE_DIR), using a relative path
+  - Workspace file format:
+
+    ```json
+    {
+      "rootPath": "relative/path/to/root-or-null",
+      "openFiles": [
+        "relative/path/to/file-1",
+        "relative/path/to/file-2"
+      ],
+      "activePath": "relative/path/to/file-1"
+    }
+    ```
 
 - Terminal-like Panel (API Mode)
   - Type after the prompt and press Enter

@@ -25,3 +25,9 @@ export type Tab =
       originalDataUrl: string;
       dirty: boolean;
     };
+
+export type WorkspaceFile = {
+  rootPath: string | null;
+  openFiles: string[];
+  activePath: string | null;
+};

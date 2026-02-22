@@ -4,10 +4,11 @@ import TerminalInline from "./TerminalInline";
 type TerminalPanelProps = {
   authedHeaders: Record<string, string>;
   onAuthError: () => void;
+  baseDir: string | null;
 };
 
 function TerminalPanel(props: TerminalPanelProps) {
-  const { authedHeaders, onAuthError } = props;
+  const { authedHeaders, onAuthError, baseDir } = props;
 
   const [cwd, setCwd] = useState<string>("");
   const [termLines, setTermLines] = useState<string[]>([]);
@@ -19,13 +20,32 @@ function TerminalPanel(props: TerminalPanelProps) {
   const [dragStartY, setDragStartY] = useState(0);
   const [dragStartH, setDragStartH] = useState(192);
 
+  function getPromptPath() {
+    if (!baseDir) return cwd || ".";
+    const trimmedBase = baseDir.replace(/[\\/]+$/, "");
+    if (!cwd) return trimmedBase;
+    const sep = baseDir.includes("\\") ? "\\" : "/";
+    return `${trimmedBase}${sep}${cwd}`;
+  }
+
+  function getPrompt() {
+    const path = getPromptPath();
+    return `${path} $ `;
+  }
+
   useEffect(() => {
-    if (termLines.length === 0) {
-      const p = `${cwd || "."} $ `;
-      setTermLines([p]);
-    }
+    setTermLines((prev) => {
+      const prompt = getPrompt();
+      if (prev.length === 0) {
+        return [prompt];
+      }
+      if (prev.length === 1 && prev[0].endsWith(" $ ") && prev[0] !== prompt) {
+        return [prompt];
+      }
+      return prev;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [baseDir]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -45,13 +65,21 @@ function TerminalPanel(props: TerminalPanelProps) {
   }, [dragging, dragStartY, dragStartH]);
 
   function printPrompt() {
-    const p = `${cwd || "."} $ `;
+    const p = getPrompt();
     setTermLines((prev) => [...prev, p]);
   }
 
   function runCommandLine(line: string) {
-    const p = `${cwd || "."} $ ${line}`;
-    setTermLines((prev) => [...prev, p]);
+    const prompt = getPrompt();
+    const withCmd = `${prompt}${line}`;
+    setTermLines((prev) => {
+      if (prev.length === 0) return [withCmd];
+      const last = prev[prev.length - 1];
+      if (last === prompt) {
+        return [...prev.slice(0, -1), withCmd];
+      }
+      return [...prev, withCmd];
+    });
     setHist((h) => [line, ...h]);
     setHistIdx(-1);
     const trimmed = line.trim();
@@ -85,7 +113,7 @@ function TerminalPanel(props: TerminalPanelProps) {
           printPrompt();
         })
         .catch((e) => {
-          setTermLines((prev) => [...prev, String((e as Error).message || e), ""]);
+          setTermLines((prev) => [...prev, String((e as Error).message || e)]);
           printPrompt();
         });
       return;
@@ -105,11 +133,11 @@ function TerminalPanel(props: TerminalPanelProps) {
       .then((data) => {
         const out = (data.output ?? "").replace(/\r/g, "");
         const lines = out.length ? out.split("\n") : [];
-        setTermLines((prev) => [...prev, ...lines, ""]);
+        setTermLines((prev) => [...prev, ...lines]);
         printPrompt();
       })
       .catch((e) => {
-        setTermLines((prev) => [...prev, String((e as Error).message || e), ""]);
+        setTermLines((prev) => [...prev, String((e as Error).message || e)]);
         printPrompt();
       });
   }
@@ -150,4 +178,3 @@ function TerminalPanel(props: TerminalPanelProps) {
 }
 
 export default TerminalPanel;
-
