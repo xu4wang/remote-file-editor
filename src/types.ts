@@ -40,6 +40,7 @@ export type ShareInfo = {
   expiresAt: string | null;
   url: string;
   theme: "light" | "dark" | null;
+  users?: { username: string }[];
 };
 
 export type ShareLog = {

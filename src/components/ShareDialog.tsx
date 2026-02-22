@@ -28,8 +28,7 @@ function ShareDialog(props: ShareDialogProps) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [share, setShare] = useState<ShareInfo | null>(null);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [users, setUsers] = useState<{ id: string; username: string; password: string; existing: boolean }[]>([]);
   const [expiresAt, setExpiresAt] = useState("");
   const [logs, setLogs] = useState<ShareLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -78,12 +77,31 @@ function ShareDialog(props: ShareDialogProps) {
         setSuccessMessage(null);
         setShare(info);
         if (info) {
-          setUsername(info.username);
+          if (info.users && info.users.length > 0) {
+            setUsers(
+              info.users.map((u, idx) => ({
+                id: `existing-${idx}`,
+                username: u.username,
+                password: "",
+                existing: true,
+              }))
+            );
+          } else if (info.username) {
+            setUsers([
+              {
+                id: "existing-0",
+                username: info.username,
+                password: "",
+                existing: true,
+              },
+            ]);
+          } else {
+            setUsers([]);
+          }
           setExpiresAt(formatDate(info.expiresAt));
-          setPassword("");
           loadLogs(info.shareId);
         } else {
-          setUsername("");
+          setUsers([]);
           setExpiresAt("");
           setLogs([]);
         }
@@ -99,6 +117,22 @@ function ShareDialog(props: ShareDialogProps) {
 
   const shareUrl = share?.url || "";
 
+  function addUserRow() {
+    setUsers((prev) => [
+      ...prev,
+      {
+        id: `new-${Date.now()}-${prev.length}`,
+        username: "",
+        password: "",
+        existing: false,
+      },
+    ]);
+  }
+
+  function removeUserRow(id: string) {
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+  }
+
   function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!path) return;
@@ -107,17 +141,34 @@ function ShareDialog(props: ShareDialogProps) {
     setSuccessMessage(null);
     const body: {
       path: string;
-      username: string;
+      username?: string;
       password?: string;
       expiresAt?: string | null;
       theme?: "light" | "dark";
+      users?: { username: string; password?: string }[];
     } = {
       path,
-      username,
     };
     body.theme = theme;
-    if (password) {
-      body.password = password;
+    const cleanedUsers = users
+      .map((u) => ({
+        username: u.username.trim(),
+        password: u.password,
+        existing: u.existing,
+      }))
+      .filter((u) => u.username);
+    if (cleanedUsers.length === 0) {
+      setSaving(false);
+      setError("At least one user is required");
+      return;
+    }
+    body.users = cleanedUsers.map((u) => ({
+      username: u.username,
+      password: u.password || undefined,
+    }));
+    if (!share && cleanedUsers.length === 1 && cleanedUsers[0].password) {
+      body.username = cleanedUsers[0].username;
+      body.password = cleanedUsers[0].password;
     }
     if (expiresAt) {
       body.expiresAt = new Date(expiresAt).toISOString();
@@ -139,7 +190,27 @@ function ShareDialog(props: ShareDialogProps) {
       .then((data) => {
         const info: ShareInfo = data.share;
         setShare(info);
-        setPassword("");
+        if (info.users && info.users.length > 0) {
+          setUsers(
+            info.users.map((u, idx) => ({
+              id: `existing-${idx}`,
+              username: u.username,
+              password: "",
+              existing: true,
+            }))
+          );
+        } else if (info.username) {
+          setUsers([
+            {
+              id: "existing-0",
+              username: info.username,
+              password: "",
+              existing: true,
+            },
+          ]);
+        } else {
+          setUsers([]);
+        }
         setExpiresAt(formatDate(info.expiresAt));
         setSuccessMessage("Share saved");
         loadLogs(info.shareId);
@@ -174,7 +245,7 @@ function ShareDialog(props: ShareDialogProps) {
       .then(() => {
         setShare(null);
         setLogs([]);
-        setPassword("");
+        setUsers([]);
         setExpiresAt("");
         setSuccessMessage("Share disabled");
       })
@@ -226,25 +297,88 @@ function ShareDialog(props: ShareDialogProps) {
         <form onSubmit={handleSave} className="space-y-3">
           <div className="flex gap-3">
             <div className="flex-1 space-y-2">
-              <div>
-                <div className="mb-1 text-xs text-muted-foreground">Username</div>
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Share username"
-                  required
-                />
+              <div className="mb-1 text-xs text-muted-foreground">Users</div>
+              <div className="max-h-40 overflow-auto rounded border border-border">
+                <table className="min-w-full border-collapse text-[11px]">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="border-b border-border px-2 py-1 text-left font-medium">
+                        Username
+                      </th>
+                      <th className="border-b border-border px-2 py-1 text-left font-medium">
+                        Password
+                      </th>
+                      <th className="border-b border-border px-2 py-1 text-left font-medium">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id} className="odd:bg-muted/10">
+                        <td className="border-b border-border px-2 py-1 align-top">
+                          <Input
+                            value={u.username}
+                            onChange={(e) =>
+                              setUsers((prev) =>
+                                prev.map((row) =>
+                                  row.id === u.id ? { ...row, username: e.target.value } : row
+                                )
+                              )
+                            }
+                            placeholder="Username"
+                            className="h-7 text-[11px]"
+                          />
+                        </td>
+                        <td className="border-b border-border px-2 py-1 align-top">
+                          <Input
+                            type="password"
+                            value={u.password}
+                            onChange={(e) =>
+                              setUsers((prev) =>
+                                prev.map((row) =>
+                                  row.id === u.id ? { ...row, password: e.target.value } : row
+                                )
+                              )
+                            }
+                            placeholder={
+                              u.existing ? "Leave blank to keep current" : "Password"
+                            }
+                            className="h-7 text-[11px]"
+                          />
+                        </td>
+                        <td className="border-b border-border px-2 py-1 align-top">
+                          <button
+                            type="button"
+                            className="rounded px-2 py-1 text-[11px] hover:bg-secondary"
+                            onClick={() => removeUserRow(u.id)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.length === 0 && (
+                      <tr>
+                        <td
+                          className="border-b border-border px-2 py-2 text-[11px] text-muted-foreground"
+                          colSpan={3}
+                        >
+                          No users yet. Add at least one user to enable the share.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
               <div>
-                <div className="mb-1 text-xs text-muted-foreground">
-                  Password {share ? "(leave blank to keep current)" : ""}
-                </div>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={share ? "New password (optional)" : "Password"}
-                />
+                <Button
+                  type="button"
+                  className="h-7 px-2 text-[11px]"
+                  onClick={addUserRow}
+                >
+                  Add user
+                </Button>
               </div>
               <div>
                 <div className="mb-1 text-xs text-muted-foreground">

@@ -40,6 +40,15 @@ db.exec(`
     active INTEGER NOT NULL DEFAULT 1,
     theme TEXT
   );
+  CREATE TABLE IF NOT EXISTS share_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    share_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  );
   CREATE TABLE IF NOT EXISTS share_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     share_id TEXT NOT NULL,
@@ -55,6 +64,14 @@ db.exec(`
 try {
   db.exec("ALTER TABLE shares ADD COLUMN theme TEXT");
 } catch (e) {
+}
+
+function getShareUsers(shareId) {
+  return db
+    .prepare(
+      "SELECT username, password_salt, password_hash, created_at, active FROM share_users WHERE share_id = ?"
+    )
+    .all(shareId);
 }
 
 function resolveSafe(p = "") {
@@ -599,6 +616,7 @@ app.get("/api/share", authMiddleware, (req, res) => {
     if (!row || isShareExpired(row)) {
       return res.json({ share: null });
     }
+    const userRows = getShareUsers(row.share_id).filter((u) => u.active);
     const url = makeShareUrl(req, row.share_id);
     res.json({
       share: {
@@ -609,6 +627,7 @@ app.get("/api/share", authMiddleware, (req, res) => {
         expiresAt: row.expires_at || null,
         url,
         theme: row.theme || null,
+        users: userRows.map((u) => ({ username: u.username })),
       },
     });
   } catch (e) {
@@ -617,12 +636,9 @@ app.get("/api/share", authMiddleware, (req, res) => {
 });
 
 app.post("/api/share", authMiddleware, (req, res) => {
-  const { path: rel, username, password, expiresAt, theme } = req.body || {};
+  const { path: rel, username, password, expiresAt, theme, users } = req.body || {};
   if (!rel) {
     return res.status(400).json({ error: "path required" });
-  }
-  if (!username) {
-    return res.status(400).json({ error: "username required" });
   }
   const lower = String(rel).toLowerCase();
   if (!lower.endsWith(".md") && !lower.endsWith(".markdown")) {
@@ -645,6 +661,12 @@ app.post("/api/share", authMiddleware, (req, res) => {
     }
     const themeValue = theme === "light" || theme === "dark" ? theme : null;
     const existing = getActiveShareByPath(rel);
+    const incomingUsers = Array.isArray(users) ? users.filter((u) => u && typeof u.username === "string") : null;
+    if (!incomingUsers || incomingUsers.length === 0) {
+      if (!username) {
+        return res.status(400).json({ error: "username required" });
+      }
+    }
     let shareId;
     let createdAt = now;
     if (existing) {
@@ -659,18 +681,66 @@ app.post("/api/share", authMiddleware, (req, res) => {
       }
       db.prepare(
         "UPDATE shares SET username = ?, password_salt = ?, password_hash = ?, html_content = ?, expires_at = ?, theme = ?, active = 1 WHERE share_id = ?"
-      ).run(username, salt, hash, html, expireIso, themeValue, shareId);
+      ).run(username || existing.username, salt, hash, html, expireIso, themeValue, shareId);
     } else {
-      if (!password || String(password).length === 0) {
+      if ((!incomingUsers || incomingUsers.length === 0) && (!password || String(password).length === 0)) {
         return res.status(400).json({ error: "password required for new share" });
       }
       shareId = generateShareId();
       const html = renderMarkdownForShare(rel, markdown, shareId);
-      const salt = generateSalt();
-      const hash = hashPassword(password, salt);
+      let salt = "";
+      let hash = "";
+      if (password && String(password).length > 0 && username) {
+        salt = generateSalt();
+        hash = hashPassword(password, salt);
+      } else {
+        salt = generateSalt();
+        hash = hashPassword(generateShareId(), salt);
+      }
       db.prepare(
         "INSERT INTO shares (share_id, file_path, username, password_salt, password_hash, html_content, created_at, expires_at, active, theme) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)"
-      ).run(shareId, rel, username, salt, hash, html, now, expireIso, themeValue);
+      ).run(shareId, rel, username || "", salt, hash, html, now, expireIso, themeValue);
+    }
+
+    if (incomingUsers && incomingUsers.length > 0) {
+      const existingUsers = getShareUsers(shareId);
+      const byName = new Map();
+      for (const u of existingUsers) {
+        byName.set(u.username, u);
+      }
+      const seen = new Set();
+      for (const u of incomingUsers) {
+        const name = String(u.username || "").trim();
+        if (!name) continue;
+        seen.add(name);
+        const pw = typeof u.password === "string" ? u.password : "";
+        const existingUser = byName.get(name);
+        if (!existingUser) {
+          if (!pw) {
+            return res.status(400).json({ error: "password required for new user" });
+          }
+          const saltU = generateSalt();
+          const hashU = hashPassword(pw, saltU);
+          db.prepare(
+            "INSERT INTO share_users (share_id, username, password_salt, password_hash, created_at, active) VALUES (?, ?, ?, ?, ?, 1)"
+          ).run(shareId, name, saltU, hashU, now);
+        } else {
+          let saltU = existingUser.password_salt;
+          let hashU = existingUser.password_hash;
+          if (pw) {
+            saltU = generateSalt();
+            hashU = hashPassword(pw, saltU);
+          }
+          db.prepare(
+            "UPDATE share_users SET password_salt = ?, password_hash = ?, active = 1 WHERE share_id = ? AND username = ?"
+          ).run(saltU, hashU, shareId, name);
+        }
+      }
+      for (const u of existingUsers) {
+        if (!seen.has(u.username) && u.active) {
+          db.prepare("UPDATE share_users SET active = 0 WHERE share_id = ? AND username = ?").run(shareId, u.username);
+        }
+      }
     }
     const row = getShareById(shareId);
     const url = makeShareUrl(req, row.share_id);
@@ -683,6 +753,9 @@ app.post("/api/share", authMiddleware, (req, res) => {
         expiresAt: row.expires_at || null,
         url,
         theme: row.theme || null,
+        users: (incomingUsers && incomingUsers.length > 0
+          ? incomingUsers.map((u) => ({ username: String(u.username || "").trim() })).filter((u) => u.username)
+          : getShareUsers(row.share_id).filter((u) => u.active).map((u) => ({ username: u.username }))),
       },
     });
   } catch (e) {
@@ -711,6 +784,39 @@ app.get("/api/share/:shareId/logs", authMiddleware, (req, res) => {
     res.json({ logs });
   } catch (e) {
     res.status(500).json({ error: "Failed to load logs" });
+  }
+});
+
+app.get("/api/share/list", authMiddleware, (req, res) => {
+  const onlyActive = String(req.query.active || "").trim() === "1";
+  try {
+    const rows = db
+      .prepare(
+        `SELECT share_id, file_path, username, created_at, expires_at, active, theme
+         FROM shares
+         ${onlyActive ? "WHERE active = 1" : ""}
+         ORDER BY created_at DESC`
+      )
+      .all();
+    const shares = rows.map((row) => {
+      const expired = isShareExpired(row);
+      const users = getShareUsers(row.share_id).filter((u) => u.active);
+      return {
+        shareId: row.share_id,
+        path: row.file_path,
+        username: row.username,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at || null,
+        active: !!row.active,
+        expired,
+        url: null,
+        theme: row.theme || null,
+         users: users.map((u) => ({ username: u.username })),
+      };
+    });
+    res.json({ shares });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to list shares" });
   }
 });
 
@@ -806,11 +912,15 @@ app.get("/share/:shareId", (req, res) => {
     const cookies = parseCookies(req.headers.cookie || "");
     const token = cookies[`share_${shareId}`];
     let authorized = false;
+    let usernameFromToken = "";
     if (token) {
       try {
         const payload = jwt.verify(token, JWT_SECRET);
         if (payload && payload.shareId === shareId) {
           authorized = true;
+          if (payload.username && typeof payload.username === "string") {
+            usernameFromToken = payload.username;
+          }
         }
       } catch {
       }
@@ -820,7 +930,7 @@ app.get("/share/:shareId", (req, res) => {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.send(renderShareLoginPage(shareId, error));
     }
-    logShareEvent(shareId, req, true, share.username, "");
+    logShareEvent(shareId, req, true, usernameFromToken || share.username, "");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.send(renderSharedHtmlPage(share));
   } catch (e) {
@@ -844,15 +954,32 @@ app.post("/share/:shareId/login", (req, res) => {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.send(renderShareLoginPage(shareId, "Username and password are required"));
     }
-    const okUser = username === share.username;
-    const okPass = verifyPassword(password, share.password_salt, share.password_hash);
-    if (!okUser || !okPass) {
+    const users = getShareUsers(shareId).filter((u) => u.active);
+    let ok = false;
+    let matchedUsername = "";
+    if (users.length > 0) {
+      const found = users.find((u) => u.username === username);
+      if (found) {
+        if (verifyPassword(password, found.password_salt, found.password_hash)) {
+          ok = true;
+          matchedUsername = found.username;
+        }
+      }
+    } else {
+      const okUser = username === share.username;
+      const okPass = verifyPassword(password, share.password_salt, share.password_hash);
+      if (okUser && okPass) {
+        ok = true;
+        matchedUsername = username;
+      }
+    }
+    if (!ok) {
       logShareEvent(shareId, req, false, username, "Invalid credentials");
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.send(renderShareLoginPage(shareId, "Invalid username or password"));
     }
-    logShareEvent(shareId, req, true, username, "");
-    const token = jwt.sign({ shareId }, JWT_SECRET, { expiresIn: "12h" });
+    logShareEvent(shareId, req, true, matchedUsername || username, "");
+    const token = jwt.sign({ shareId, username: matchedUsername || username }, JWT_SECRET, { expiresIn: "12h" });
     res.cookie(`share_${shareId}`, token, { httpOnly: false, sameSite: "lax" });
     return res.redirect(`/share/${shareId}`);
   } catch (e) {

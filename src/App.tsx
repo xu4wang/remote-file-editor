@@ -10,6 +10,7 @@ import TabsBar from "./components/TabsBar";
 import ConfirmCloseDialog from "./components/ConfirmCloseDialog";
 import TerminalPanel from "./components/TerminalPanel";
 import ShareDialog from "./components/ShareDialog";
+import SharesDialog from "./components/SharesDialog";
 import type { Tab, TreeNode, WorkspaceFile } from "./types";
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [tocItems, setTocItems] = useState<{ id: string; text: string; level: number }[]>([]);
   const [shareDialogPath, setShareDialogPath] = useState<string | null>(null);
+  const [sharesDialogOpen, setSharesDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -576,6 +578,15 @@ function App() {
                   className="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted"
                   onClick={() => {
                     setTopMenuOpen(false);
+                    setSharesDialogOpen(true);
+                  }}
+                >
+                  Shares...
+                </button>
+                <button
+                  className="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    setTopMenuOpen(false);
                     saveWorkspaceAs();
                   }}
                 >
@@ -878,6 +889,15 @@ function App() {
         authedHeaders={authedHeaders}
         theme={theme}
         onClose={() => setShareDialogPath(null)}
+      />
+      <SharesDialog
+        open={sharesDialogOpen}
+        authedHeaders={authedHeaders}
+        onClose={() => setSharesDialogOpen(false)}
+        onEditShare={(path) => {
+          setSharesDialogOpen(false);
+          setShareDialogPath(path);
+        }}
       />
     </div>
   );
