@@ -702,7 +702,7 @@ function App() {
                               {activeTab.content}
                             </ReactMarkdown>
                           </div>
-                          <div className="hidden w-64 border-l border-border p-3 text-xs lg:block">
+                          <div className="hidden h-full w-64 border-l border-border p-3 text-xs overflow-auto lg:block">
                             <div className="mb-2 font-semibold text-muted-foreground">
                               Table of Contents
                             </div>
