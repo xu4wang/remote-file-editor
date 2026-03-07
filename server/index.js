@@ -258,7 +258,9 @@ body{margin:0;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFon
 main{margin-top:8px;}
 a{color:${accent};}
 img{max-width:100%;height:auto;display:block;margin:12px 0;}
-pre{border-radius:4px;padding:12px;overflow:auto;margin:16px 0 !important;background:#1f2937 !important;border:1px solid #374151 !important;}
+pre{border-radius:4px;padding:12px;overflow:auto;margin:16px 0 !important;background:#1f2937 !important;border:1px solid #374151 !important;line-height:1.5;}
+pre code{color:#d4d4d4 !important;font-size:13px;}
+code[class*="language-"], pre[class*="language-"]{background:#1f2937 !important;color:#d4d4d4 !important;}
 code{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;}
 :not(pre) > code{background:rgba(148,163,184,0.1);padding:2px 4px;border-radius:4px;}
 .mermaid{background:transparent;display:flex;justify-content:center;margin:16px 0;}
