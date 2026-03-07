@@ -89,11 +89,15 @@ function App() {
                 background: "#1e1e1e",
                 padding: "1rem",
                 lineHeight: "1.5",
+                color: "#d4d4d4",
+                overflowX: "auto",
               }}
               codeTagProps={{
                 style: {
                   backgroundColor: "transparent",
                   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  color: "#d4d4d4",
+                  whiteSpace: "pre",
                 },
               }}
               {...props}
