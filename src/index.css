@@ -156,8 +156,7 @@ body {
 
 .markdown-body a {
   color: rgb(96, 165, 250);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 
 .markdown-body blockquote {
