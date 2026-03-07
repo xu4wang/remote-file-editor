@@ -75,17 +75,17 @@ function App() {
           return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
         }
 
-        if (!inline) {
+        if (!inline && match) {
           return (
             <SyntaxHighlighter
               style={vscDarkPlus}
-              language={lang || "plaintext"}
+              language={lang}
               PreTag="div"
               customStyle={{
                 margin: 0,
                 borderRadius: "0.375rem",
                 fontSize: "0.875rem",
-                background: "#1e1e1e", // 强制加深背景
+                background: "#1e1e1e",
               }}
               {...props}
             >
@@ -94,10 +94,7 @@ function App() {
           );
         }
         return (
-          <code
-            className={`${className} rounded bg-muted/30 px-1 py-0.5 font-mono text-sm border border-border/20`}
-            {...props}
-          >
+          <code className={className} {...props}>
             {children}
           </code>
         );

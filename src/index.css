@@ -124,16 +124,24 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .markdown-body pre {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
+  background-color: transparent;
+  padding: 0;
+  border: none;
 }
 
 .markdown-body pre code {
   padding: 0;
   background-color: transparent;
+  border: none;
 }
 
 .markdown-body a {
