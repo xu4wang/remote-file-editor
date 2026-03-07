@@ -242,9 +242,9 @@ function renderSharedHtmlPage(share) {
   const accent = theme === "light" ? "#2563eb" : "#60a5fa";
   const tableRowAlt = theme === "light" ? "rgba(249,250,251,1)" : "rgba(15,23,42,0.6)";
   const tableRowHover = theme === "light" ? "rgba(219,234,254,1)" : "rgba(30,64,175,0.45)";
-  // Always use dark mode for code and mermaid as per user request
+  // Code blocks use dark mode as requested, but inline code and mermaid use defaults
   const prismTheme = "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css";
-  const mermaidTheme = "dark";
+  const mermaidTheme = "default";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -260,8 +260,8 @@ a{color:${accent};}
 img{max-width:100%;height:auto;display:block;margin:12px 0;}
 pre{border-radius:4px;padding:12px;overflow:auto;margin:16px 0 !important;background:#1f2937 !important;border:1px solid #374151 !important;}
 code{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;}
-:not(pre) > code{background:${bg};border:1px solid ${border};padding:2px 4px;border-radius:4px;}
-.mermaid{background:#0f172a;display:flex;justify-content:center;margin:16px 0;padding:16px;border-radius:8px;}
+:not(pre) > code{background:rgba(148,163,184,0.1);padding:2px 4px;border-radius:4px;}
+.mermaid{background:transparent;display:flex;justify-content:center;margin:16px 0;}
 .table-wrapper{width:100%;overflow-x:auto;margin:16px 0;}
 table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px;margin:0;}
 thead{background:${bg};}

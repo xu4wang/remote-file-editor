@@ -16,46 +16,6 @@ import ShareDialog from "./components/ShareDialog";
 import SharesDialog from "./components/SharesDialog";
 import type { Tab, TreeNode, WorkspaceFile } from "./types";
 
-const markdownComponents = {
-  pre({ children }: any) {
-    return <div className="my-4 overflow-hidden rounded-md">{children}</div>;
-  },
-  code({ node, inline, className, children, ...props }: any) {
-    const match = /language-(\w+)/.exec(className || "");
-    const lang = match ? match[1] : "";
-
-    if (lang === "mermaid") {
-      return <Mermaid chart={String(children).replace(/\n$/, "")} />;
-    }
-
-    if (!inline) {
-      return (
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={lang || "plaintext"}
-          PreTag="div"
-          customStyle={{
-            margin: 0,
-            borderRadius: "0.375rem",
-            fontSize: "0.875rem",
-          }}
-          {...props}
-        >
-          {String(children).replace(/\n$/, "")}
-        </SyntaxHighlighter>
-      );
-    }
-    return (
-      <code
-        className={`${className} rounded bg-muted px-1 py-0.5 font-mono text-sm`}
-        {...props}
-      >
-        {children}
-      </code>
-    );
-  },
-};
-
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
   const authedHeaders = useMemo<Record<string, string>>(() => {
@@ -101,6 +61,50 @@ function App() {
   const [tocItems, setTocItems] = useState<{ id: string; text: string; level: number }[]>([]);
   const [shareDialogPath, setShareDialogPath] = useState<string | null>(null);
   const [sharesDialogOpen, setSharesDialogOpen] = useState(false);
+
+  const markdownComponents = useMemo(
+    () => ({
+      pre({ children }: any) {
+        return <div className="my-4 overflow-hidden rounded-md">{children}</div>;
+      },
+      code({ node, inline, className, children, ...props }: any) {
+        const match = /language-(\w+)/.exec(className || "");
+        const lang = match ? match[1] : "";
+
+        if (lang === "mermaid") {
+          return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
+        }
+
+        if (!inline) {
+          return (
+            <SyntaxHighlighter
+              style={vscDarkPlus}
+              language={lang || "plaintext"}
+              PreTag="div"
+              customStyle={{
+                margin: 0,
+                borderRadius: "0.375rem",
+                fontSize: "0.875rem",
+                background: "#1e1e1e", // 强制加深背景
+              }}
+              {...props}
+            >
+              {String(children).replace(/\n$/, "")}
+            </SyntaxHighlighter>
+          );
+        }
+        return (
+          <code
+            className={`${className} rounded bg-muted/30 px-1 py-0.5 font-mono text-sm border border-border/20`}
+            {...props}
+          >
+            {children}
+          </code>
+        );
+      },
+    }),
+    [theme]
+  );
 
   useEffect(() => {
     if (!token) return;
