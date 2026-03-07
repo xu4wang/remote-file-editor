@@ -242,20 +242,26 @@ function renderSharedHtmlPage(share) {
   const accent = theme === "light" ? "#2563eb" : "#60a5fa";
   const tableRowAlt = theme === "light" ? "rgba(249,250,251,1)" : "rgba(15,23,42,0.6)";
   const tableRowHover = theme === "light" ? "rgba(219,234,254,1)" : "rgba(30,64,175,0.45)";
+  // Always use dark mode for code and mermaid as per user request
+  const prismTheme = "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css";
+  const mermaidTheme = "dark";
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <title>${title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="${prismTheme}" />
 <style>
 body{margin:0;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:${bg};color:${fg};}
 .container{max-width:960px;margin:0 auto;}
 main{margin-top:8px;}
 a{color:${accent};}
 img{max-width:100%;height:auto;display:block;margin:12px 0;}
-pre{background:${bg};border-radius:4px;padding:12px;overflow:auto;border:1px solid ${border};}
+pre{border-radius:4px;padding:12px;overflow:auto;margin:16px 0 !important;background:#1f2937 !important;border:1px solid #374151 !important;}
 code{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;}
+:not(pre) > code{background:${bg};border:1px solid ${border};padding:2px 4px;border-radius:4px;}
+.mermaid{background:#0f172a;display:flex;justify-content:center;margin:16px 0;padding:16px;border-radius:8px;}
 .table-wrapper{width:100%;overflow-x:auto;margin:16px 0;}
 table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px;margin:0;}
 thead{background:${bg};}
@@ -410,6 +416,24 @@ ${share.html_content}
     });
   }
 })();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: '${mermaidTheme}' });
+  
+  // Handle any mermaid blocks that marked might have wrapped in pre/code
+  document.querySelectorAll('pre code.language-mermaid').forEach($el => {
+    const $pre = $el.parentElement;
+    const chart = $el.textContent;
+    const $div = document.createElement('div');
+    $div.className = 'mermaid';
+    $div.textContent = chart;
+    $pre.replaceWith($div);
+  });
+  // If they are just divs with class mermaid (some renderers do this)
+  mermaid.run();
 </script>
 </body>
 </html>`;

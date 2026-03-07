@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Button } from "./components/ui";
+import Mermaid from "./components/Mermaid";
 import Login from "./components/Login";
 import ImageEditor from "./components/ImageEditor";
 import FileSidebar from "./components/FileSidebar";
@@ -12,6 +15,46 @@ import TerminalPanel from "./components/TerminalPanel";
 import ShareDialog from "./components/ShareDialog";
 import SharesDialog from "./components/SharesDialog";
 import type { Tab, TreeNode, WorkspaceFile } from "./types";
+
+const markdownComponents = {
+  pre({ children }: any) {
+    return <div className="my-4 overflow-hidden rounded-md">{children}</div>;
+  },
+  code({ node, inline, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || "");
+    const lang = match ? match[1] : "";
+
+    if (lang === "mermaid") {
+      return <Mermaid chart={String(children).replace(/\n$/, "")} />;
+    }
+
+    if (!inline) {
+      return (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={lang || "plaintext"}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            borderRadius: "0.375rem",
+            fontSize: "0.875rem",
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      );
+    }
+    return (
+      <code
+        className={`${className} rounded bg-muted px-1 py-0.5 font-mono text-sm`}
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+};
 
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
@@ -723,7 +766,7 @@ function App() {
                             ref={previewRef}
                             className="markdown-body flex-1 overflow-auto p-4 text-sm"
                           >
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                               {activeTab.content}
                             </ReactMarkdown>
                           </div>
@@ -816,7 +859,7 @@ function App() {
                           </div>
                           <div className="w-1/2">
                             <div className="markdown-body p-4 text-sm">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                 {activeTab.content}
                               </ReactMarkdown>
                             </div>

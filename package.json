@@ -14,15 +14,18 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "marked": "^15.0.12",
+    "mermaid": "^11.12.3",
     "monaco-editor": "^0.52.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^9.1.0",
+    "react-syntax-highlighter": "^16.1.1",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
