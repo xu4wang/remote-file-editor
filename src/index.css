@@ -133,15 +133,17 @@ body {
 .markdown-body pre {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
-  background-color: transparent;
+  background-color: transparent !important;
   padding: 0;
   border: none;
 }
 
 .markdown-body pre code {
   padding: 0;
-  background-color: transparent;
+  background-color: transparent !important;
   border: none;
+  white-space: pre !important;
+  color: inherit;
 }
 
 .markdown-body a {
@@ -180,5 +182,5 @@ body {
 }
 
 .markdown-body tr:nth-child(even) td {
-  background-color: hsl(var(--muted));
+  background-color: hsl(var(--muted) / 0.5);
 }

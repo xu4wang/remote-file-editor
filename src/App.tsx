@@ -75,17 +75,24 @@ function App() {
           return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
         }
 
-        if (!inline && match) {
+        if (!inline) {
           return (
             <SyntaxHighlighter
               style={vscDarkPlus}
-              language={lang}
+              language={lang || "plaintext"}
               PreTag="div"
               customStyle={{
                 margin: 0,
                 borderRadius: "0.375rem",
                 fontSize: "0.875rem",
                 background: "#1e1e1e",
+                padding: "1rem",
+              }}
+              codeTagProps={{
+                style: {
+                  backgroundColor: "transparent",
+                  fontFamily: "inherit",
+                },
               }}
               {...props}
             >
