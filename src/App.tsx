@@ -75,23 +75,25 @@ function App() {
           return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
         }
 
-        if (!inline) {
+        // 显式判断：只有当它不是 inline 且具有语言标识或者是明确的代码块时才使用 SyntaxHighlighter
+        if (!inline && (match || String(children).includes("\n"))) {
           return (
             <SyntaxHighlighter
               style={vscDarkPlus}
               language={lang || "plaintext"}
               PreTag="div"
               customStyle={{
-                margin: 0,
+                margin: "1rem 0",
                 borderRadius: "0.375rem",
                 fontSize: "0.875rem",
                 background: "#1e1e1e",
                 padding: "1rem",
+                lineHeight: "1.5",
               }}
               codeTagProps={{
                 style: {
                   backgroundColor: "transparent",
-                  fontFamily: "inherit",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                 },
               }}
               {...props}
@@ -101,7 +103,11 @@ function App() {
           );
         }
         return (
-          <code className={className} {...props}>
+          <code
+            className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[0.9em] border border-border/30 text-foreground inline-block"
+            style={{ display: 'inline', whiteSpace: 'break-spaces' }}
+            {...props}
+          >
             {children}
           </code>
         );

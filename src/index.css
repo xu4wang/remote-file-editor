@@ -124,18 +124,25 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   font-size: 0.875em;
+}
+
+/* 仅针对正文中的行内代码应用样式 */
+.markdown-body :not(pre) > code {
   padding: 0.2em 0.4em;
   border-radius: 0.25rem;
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));
+  display: inline !important;
+  border: 1px solid hsl(var(--border) / 0.5);
 }
 
 .markdown-body pre {
-  margin-top: 0.75rem;
-  margin-bottom: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   background-color: transparent !important;
   padding: 0;
   border: none;
+  overflow: visible;
 }
 
 .markdown-body pre code {
@@ -143,6 +150,7 @@ body {
   background-color: transparent !important;
   border: none;
   white-space: pre !important;
+  display: block !important;
   color: inherit;
 }
 
