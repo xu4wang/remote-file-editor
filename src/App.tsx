@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import MarkdownPreview from "./components/MarkdownPreview";
 import { Button } from "./components/ui";
-import Mermaid from "./components/Mermaid";
 import Login from "./components/Login";
 import ImageEditor from "./components/ImageEditor";
 import FileSidebar from "./components/FileSidebar";
@@ -62,62 +58,60 @@ function App() {
   const [shareDialogPath, setShareDialogPath] = useState<string | null>(null);
   const [sharesDialogOpen, setSharesDialogOpen] = useState(false);
 
-  const markdownComponents = useMemo(
-    () => ({
-      pre({ children }: any) {
-        return <div className="my-4 overflow-hidden rounded-md">{children}</div>;
-      },
-      code({ node, inline, className, children, ...props }: any) {
-        const match = /language-(\w+)/.exec(className || "");
-        const lang = match ? match[1] : "";
+  // markdown preview is rendered by MarkdownPreview (markdown-it + hljs + mermaid)
+  const scrollToHeading = (id?: string | null) => {
+    if (!id || !previewRef.current) return;
+    const root = previewRef.current;
+    const raw = decodeURIComponent(id);
+    const candidates = [
+      raw,
+      raw.replace(/"/g, '\\"'),
+      slugify(raw),
+      slugify(raw).toLowerCase(),
+    ];
+    let el: HTMLElement | null = null;
+    for (const c of candidates) {
+      el = root.querySelector(`[id="${c}"]`) as HTMLElement | null;
+      if (el) break;
+    }
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
-        if (lang === "mermaid") {
-          return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
+  useEffect(() => {
+    const root = previewRef.current;
+    if (!root) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const a = (target.closest && target.closest("a")) as HTMLAnchorElement | null;
+      if (a) {
+        const raw = a.getAttribute("href") || "";
+        // Same-document hash links: either "#id" or full URL with same origin+path and a hash
+        try {
+          if (raw.startsWith("#")) {
+            e.preventDefault();
+            const id = raw.slice(1);
+            scrollToHeading(id);
+            window.history.replaceState(null, "", `#${id}`);
+            return;
+          }
+          const url = new URL(a.href, window.location.href);
+          if (url.origin === window.location.origin && url.pathname === window.location.pathname && url.hash) {
+            e.preventDefault();
+            const id = url.hash.slice(1);
+            scrollToHeading(id);
+            window.history.replaceState(null, "", `#${id}`);
+          }
+        } catch {
+          // ignore parse errors
         }
-
-        if (!inline && (match || String(children).includes("\n"))) {
-          return (
-            <SyntaxHighlighter
-              style={vscDarkPlus}
-              language={lang || "plaintext"}
-              PreTag="div"
-              customStyle={{
-                margin: "1rem 0",
-                borderRadius: "0.375rem",
-                fontSize: "0.875rem",
-                background: "#1e1e1e",
-                padding: "1rem",
-                lineHeight: "1.5",
-                color: "#d4d4d4",
-                overflowX: "auto",
-              }}
-              codeTagProps={{
-                style: {
-                  backgroundColor: "transparent",
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                  color: "#d4d4d4",
-                  whiteSpace: "pre",
-                },
-              }}
-              {...props}
-            >
-              {String(children).replace(/\n$/, "")}
-            </SyntaxHighlighter>
-          );
-        }
-        return (
-          <code
-            className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[0.9em] border border-border/30 text-foreground inline-block"
-            style={{ display: 'inline', whiteSpace: 'break-spaces' }}
-            {...props}
-          >
-            {children}
-          </code>
-        );
-      },
-    }),
-    [theme]
-  );
+      }
+    };
+    root.addEventListener("click", onClick);
+    return () => root.removeEventListener("click", onClick);
+  }, [activeTab, markdownViewMode]);
 
   useEffect(() => {
     if (!token) return;
@@ -186,6 +180,11 @@ function App() {
       };
     });
     setTocItems(items);
+    // After ids are ensured, if there's a location hash, scroll to it
+    if (window.location.hash) {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      scrollToHeading(id);
+    }
   }, [activeTab, markdownViewMode]);
 
   function refreshTree(rootOverride?: string | null) {
@@ -779,14 +778,12 @@ function App() {
                     <div className="min-h-0 flex-1">
                       {markdownViewMode === "preview" && (
                         <div className="flex h-full">
-                          <div
-                            ref={previewRef}
+                          <MarkdownPreview
+                            markdown={activeTab.content}
+                            theme={theme}
+                            containerRef={previewRef}
                             className="markdown-body flex-1 overflow-auto p-4 text-sm"
-                          >
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                              {activeTab.content}
-                            </ReactMarkdown>
-                          </div>
+                          />
                           <div className="hidden h-full w-64 border-l border-border p-3 text-xs overflow-auto lg:block">
                             <div className="mb-2 font-semibold text-muted-foreground">
                               Table of Contents
@@ -799,6 +796,10 @@ function App() {
                                   <li key={item.id}>
                                     <a
                                       href={`#${item.id}`}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        scrollToHeading(item.id);
+                                      }}
                                       className={`block ${
                                         item.level === 1
                                           ? "font-medium"
@@ -875,11 +876,11 @@ function App() {
                             </div>
                           </div>
                           <div className="w-1/2">
-                            <div className="markdown-body p-4 text-sm">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                                {activeTab.content}
-                              </ReactMarkdown>
-                            </div>
+                            <MarkdownPreview
+                              markdown={activeTab.content}
+                              theme={theme}
+                              className="markdown-body p-4 text-sm"
+                            />
                           </div>
                         </div>
                       )}
@@ -989,9 +990,10 @@ function detectLanguage(p: string) {
 }
 
 function slugify(text: string) {
-  return text
-    .trim()
-    .replace(/\s+/g, "-");
+  const t = (text || "").toLowerCase().trim();
+  const removed = t.replace(/[!-/:-@[-`{-~.]+/g, " ");
+  const dashed = removed.replace(/\s+/g, "-");
+  return dashed.replace(/-+/g, "-").replace(/^-|-$/g, "");
 }
 
 export default App;
