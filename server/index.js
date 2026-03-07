@@ -328,12 +328,42 @@ ${share.html_content}
 <script>
 (function(){
   function slugify(text){
-    return String(text || "")
-      .trim()
-      .replace(/\\s+/g,"-");
+    var t=String(text||"").toLowerCase().trim();
+    var removed=t.replace(/[^\\w\\s]+/g," ");
+    var dashed=removed.replace(/\\s+/g,"-");
+    return dashed.replace(/-+/g,"-").replace(/^-|-$/g,"");
   }
   var content=document.getElementById("content");
   if(!content)return;
+  // Add ids for inline code tokens (e.g., table names) to support anchors like #crm_customer_xxx
+  (function(){
+    var existing={};
+    var withId=content.querySelectorAll("[id]");
+    for(var i=0;i<withId.length;i++){ existing[withId[i].id]=true; }
+    var codes=content.querySelectorAll(":not(pre) > code");
+    for(var j=0;j<codes.length;j++){
+      var el=codes[j];
+      var txt=(el.textContent||"").trim();
+      if(!txt) continue;
+      if(!/^[A-Za-z0-9_\\-]+$/.test(txt)) continue;
+      var id=txt;
+      var n=2;
+      while(existing[id]){ id = txt + "-" + n; n++; }
+      el.id=id;
+      existing[id]=true;
+    }
+  })();
+  function scrollToId(id){
+    if(!id) return;
+    var raw=decodeURIComponent(id);
+    var candidates=[raw, raw.replace(/"/g,'\\"'), slugify(raw), slugify(raw).toLowerCase()];
+    var el=null;
+    for(var i=0;i<candidates.length;i++){
+      el=content.querySelector('[id="'+candidates[i]+'"]');
+      if(el) break;
+    }
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"start"}); }
+  }
   var headings=content.querySelectorAll("h1, h2, h3");
   if(!headings.length)return;
   var items=[];
@@ -379,6 +409,46 @@ ${share.html_content}
   buildList(document.getElementById("tocDesktop"));
   var tocMobileBody=document.getElementById("tocMobileBody");
   buildList(tocMobileBody);
+  // Anchor click handling for same-document links
+  content.addEventListener("click",function(e){
+    var t=e.target;
+    var a=t && t.closest ? t.closest("a") : null;
+    if(!a) return;
+    var raw=a.getAttribute("href")||"";
+    try{
+      if(raw.startsWith("#")){
+        e.preventDefault();
+        var id=raw.slice(1);
+        scrollToId(id);
+        history.replaceState(null,"","#"+id);
+        return;
+      }
+      var url=new URL(a.href, window.location.href);
+      if(url.origin===location.origin && url.pathname===location.pathname && url.hash){
+        e.preventDefault();
+        var id2=decodeURIComponent(url.hash.slice(1));
+        scrollToId(id2);
+        history.replaceState(null,"","#"+id2);
+      }
+    }catch(_){}
+  });
+  // TOC navigation click handling
+  function bindToc(nav){
+    if(!nav) return;
+    nav.addEventListener("click",function(e){
+      var t=e.target;
+      var a=t && t.closest ? t.closest("a") : null;
+      if(!a) return;
+      var href=a.getAttribute("href")||"";
+      if(href.startsWith("#")){
+        e.preventDefault();
+        scrollToId(href.slice(1));
+        history.replaceState(null,"",href);
+      }
+    });
+  }
+  bindToc(document.getElementById("tocDesktop"));
+  bindToc(tocMobileBody);
   var toggle=document.getElementById("tocToggle");
   var mobile=document.getElementById("tocMobile");
   var close=document.getElementById("tocClose");
@@ -414,6 +484,10 @@ ${share.html_content}
         target=target.parentNode;
       }
     });
+  }
+  // On load, if hash is present, scroll to it
+  if(window.location.hash){
+    scrollToId(window.location.hash.slice(1));
   }
 })();
 </script>
