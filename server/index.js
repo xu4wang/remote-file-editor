@@ -281,7 +281,7 @@ tbody tr:hover{background:${tableRowHover};}
 .toc-list{list-style:none;padding:0;margin:0;}
 .toc-item{margin-bottom:3px;line-height:1.4;}
 .toc-item a{text-decoration:none;color:${muted};}
-.toc-item a:hover{text-decoration:underline;color:${fg};}
+.toc-item a:hover{color:${fg};}
 .toc-level-1{font-weight:500;margin-top:8px;}
 .toc-level-2{margin-left:10px;font-size:11px;}
 .toc-level-3{margin-left:18px;font-size:11px;opacity:0.9;}

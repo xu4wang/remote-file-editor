@@ -75,7 +75,6 @@ function App() {
           return <Mermaid chart={String(children).replace(/\n$/, "")} theme={theme} />;
         }
 
-        // 显式判断：只有当它不是 inline 且具有语言标识或者是明确的代码块时才使用 SyntaxHighlighter
         if (!inline && (match || String(children).includes("\n"))) {
           return (
             <SyntaxHighlighter
@@ -800,7 +799,7 @@ function App() {
                                   <li key={item.id}>
                                     <a
                                       href={`#${item.id}`}
-                                      className={`block hover:underline ${
+                                      className={`block ${
                                         item.level === 1
                                           ? "font-medium"
                                           : item.level === 2
